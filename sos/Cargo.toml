@@ -7,6 +7,4 @@ edition = "2021"
 
 [dependencies]
 sel4 = { git = "https://gitlab.com/coliasgroup/rust-seL4" }
-sel4-full-root-task-runtime = { git = "https://gitlab.com/coliasgroup/rust-seL4", features = [
-    "full",
-] }
+sel4-root-task-runtime = { git = "https://gitlab.com/coliasgroup/rust-seL4" }

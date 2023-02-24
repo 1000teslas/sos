@@ -51,7 +51,7 @@ loader_intermediate := build_dir/"loader.intermediate"
 loader_config := absolute_path("loader-config.json")
 rust_bare_metal_target := "aarch64-unknown-none"
 app := absolute_path(build_dir/app_crate+".elf")
-remote_options := "--git https://gitlab.com/coliasgroup/rust-seL4"
+remote_options := "--git https://gitlab.com/coliasgroup/rust-seL4 --rev 7240d83b79ff8263e42ee0fd66a15189825dac99"
 
 loader: app
 	{{common_env}} \
@@ -64,7 +64,8 @@ loader: app
 		{{remote_options}} \
 		--target {{rust_bare_metal_target}} \
 		--root {{absolute_path(cargo_root_dir)}} \
-		--force
+		--force \
+		-Z bindeps
 
 alias r := run
 run: loader 
