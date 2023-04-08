@@ -1,0 +1,8 @@
+{
+    "cmake.configureOnOpen": false,
+    "rust-analyzer.runnableEnv": {
+        "SEL4_PREFIX": "build/kernel/install"
+    },
+    "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.cargo.target": "support/targets/aarch64-sel4.json"
+}

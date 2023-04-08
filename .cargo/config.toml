@@ -1,0 +1,8 @@
+[build]
+target = "support/targets/aarch64-sel4.json"
+target-dir = "build/target"
+out-dir = "build"
+
+[unstable]
+build-std = ["core", "alloc", "compiler_builtins"]
+build-std-features = ["compiler-builtins-mem"]
