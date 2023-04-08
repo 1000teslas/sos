@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["sos"]
+members = ["sos", "allocman", "linked_list_allocator"]
+
+[profile.release]
+debug-assertions = true
