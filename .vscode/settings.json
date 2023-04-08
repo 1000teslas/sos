@@ -4,5 +4,11 @@
         "SEL4_PREFIX": "build/kernel/install"
     },
     "rust-analyzer.check.allTargets": false,
-    "rust-analyzer.cargo.target": "support/targets/aarch64-sel4.json"
+    "rust-analyzer.cargo.target": "support/targets/aarch64-sel4.json",
+    "rust-analyzer.cargo.extraArgs": [
+        "-Z",
+        "build-std=core,alloc,compiler_builtins",
+        "-Z",
+        "build-std-features=compiler-builtins-mem"
+    ]
 }

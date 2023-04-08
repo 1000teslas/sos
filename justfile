@@ -37,7 +37,9 @@ rust_sel4_target := "aarch64-sel4"
 target_dir := absolute_path(build_dir/"target")
 cargo_root_dir := build_dir/"cargo-root"
 
-common_options := "--locked -Z unstable-options"
+build_std_options := "-Z build-std=core,alloc,compiler_builtins -Z build-std-features=compiler-builtins-mem"
+
+common_options := "--locked -Z unstable-options "+build_std_options
 
 app_crate := "sos"
 
