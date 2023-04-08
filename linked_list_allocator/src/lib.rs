@@ -12,7 +12,6 @@ use core::{
     alloc::Layout,
     mem,
     ptr::{self, addr_of_mut, NonNull},
-    sync::atomic::{self, AtomicBool},
 };
 // based off https://os.phil-opp.com/allocator-designs/#linked-list-allocator
 
@@ -31,28 +30,11 @@ impl LinkedListAllocator {
         }
     }
 
-    /// Initialize the allocator with the given heap bounds.
+    /// Adds the given memory region to the front of the list.
     ///
     /// This function is unsafe because the caller must guarantee that the given
     /// heap bounds are valid and that the heap is unused.
-    pub unsafe fn init(&mut self, heap: *mut [u8]) {
-        static IS_INIT: AtomicBool = AtomicBool::new(false);
-        IS_INIT
-            .compare_exchange(
-                false,
-                true,
-                atomic::Ordering::Relaxed,
-                atomic::Ordering::Relaxed,
-            )
-            .unwrap();
-
-        unsafe {
-            self.add_free_region(heap);
-        }
-    }
-
-    /// Adds the given memory region to the front of the list.
-    unsafe fn add_free_region(&mut self, range: *mut [u8]) {
+    pub unsafe fn add_free_region(&mut self, range: *mut [u8]) {
         assert!(range.as_mut_ptr().is_aligned_to(mem::align_of::<Node>()));
         assert!(range.len() >= mem::size_of::<Node>());
 
@@ -188,7 +170,7 @@ mod tests {
             SyncUnsafeCell::new(MemPool([0; HEAP_SIZE]));
         let mut alloc = LinkedListAllocator::new();
         unsafe {
-            alloc.init(slice_from_raw_parts_mut(
+            alloc.add_free_region(slice_from_raw_parts_mut(
                 addr_of_mut!((*HEAP1.get()).0).cast(),
                 HEAP_SIZE,
             ));
