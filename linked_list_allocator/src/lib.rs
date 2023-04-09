@@ -13,6 +13,8 @@ use core::{
     mem,
     ptr::{self, addr_of_mut, NonNull},
 };
+
+use align_address::Align;
 // based off https://os.phil-opp.com/allocator-designs/#linked-list-allocator
 
 pub struct LinkedListAllocator {
@@ -72,7 +74,10 @@ impl LinkedListAllocator {
     pub unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<[u8]>> {
         let layout = LinkedListAllocator::adjust(layout);
         self.find_region(layout).map(|(region, alloc)| {
-            let alloc_end = alloc.as_ptr().as_mut_ptr().wrapping_add(alloc.len());
+            let alloc_end = alloc
+                .as_ptr()
+                .as_mut_ptr()
+                .map_addr(|addr| addr + alloc.len());
             let excess_size = Node::end(region.as_ptr()).addr() - alloc_end.addr();
             if excess_size > 0 {
                 unsafe {
@@ -119,10 +124,11 @@ impl Node {
         this.cast()
     }
     fn end(this: *mut Node) -> *mut u8 {
-        this.cast::<u8>().wrapping_add(unsafe { (*this).size })
+        this.cast::<u8>()
+            .map_addr(|addr| addr + unsafe { (*this).size })
     }
     fn alloc_from_region(this: *mut Self, layout: Layout) -> Option<NonNull<[u8]>> {
-        let alloc_start = align_up(Node::start(this), layout.align());
+        let alloc_start = Node::start(this).map_addr(|addr| addr.align_up(layout.align()));
         let alloc_end = alloc_start.with_addr(alloc_start.addr().checked_add(layout.size())?);
 
         if alloc_end > Node::end(this) {
@@ -136,12 +142,6 @@ impl Node {
 
         NonNull::new(ptr::slice_from_raw_parts_mut(alloc_start, layout.size()))
     }
-}
-
-/// Align the given pointer `ptr` upwards to alignment `align`.
-fn align_up(ptr: *mut u8, align: usize) -> *mut u8 {
-    assert!(align.is_power_of_two());
-    ptr.map_addr(|addr| (addr + align - 1) & !(align - 1))
 }
 
 #[cfg(test)]
