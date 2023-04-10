@@ -1,13 +1,3 @@
-#![no_std]
-#![feature(sync_unsafe_cell)]
-#![feature(strict_provenance)]
-#![feature(slice_ptr_len, slice_ptr_get)]
-#![feature(pointer_byte_offsets)]
-#![feature(pointer_is_aligned)]
-#![feature(ptr_sub_ptr)]
-#![deny(unsafe_op_in_unsafe_fn)]
-#![warn(clippy::as_conversions)]
-
 use core::{
     alloc::Layout,
     mem,
@@ -17,12 +7,12 @@ use core::{
 use align_address::Align;
 // based off https://os.phil-opp.com/allocator-designs/#linked-list-allocator
 
-pub struct LinkedListAllocator {
+pub struct Allocator {
     head: Node,
 }
 
-impl LinkedListAllocator {
-    /// Creates an empty LinkedListAllocator.
+impl Allocator {
+    /// Creates an empty Allocator.
     pub const fn new() -> Self {
         Self {
             head: Node {
@@ -72,7 +62,7 @@ impl LinkedListAllocator {
     }
 
     pub unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<[u8]>> {
-        let layout = LinkedListAllocator::adjust(layout);
+        let layout = Allocator::adjust(layout);
         self.find_region(layout).map(|(region, alloc)| {
             let alloc_end = alloc
                 .as_ptr()
@@ -90,14 +80,14 @@ impl LinkedListAllocator {
     }
 
     pub unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
-        let layout = LinkedListAllocator::adjust(layout);
+        let layout = Allocator::adjust(layout);
         unsafe {
             self.add_free_region(ptr::slice_from_raw_parts_mut(ptr, layout.size()));
         }
     }
 
     /// Adjust the given layout so that the resulting allocated memory
-    /// region is also capable of storing a `ListNode`.
+    /// region is also capable of storing a `Node`.
     fn adjust(layout: Layout) -> Layout {
         let layout = layout
             .align_to(mem::align_of::<Node>())
@@ -113,7 +103,7 @@ impl LinkedListAllocator {
 
 // node: Node is the header of a memory region of size node.size >=
 // size_of::<Node>() bytes, except for the dummy node at the start of
-// LinkedListAllocator
+// Allocator
 struct Node {
     size: usize,
     next: Option<NonNull<Node>>,
@@ -155,7 +145,7 @@ mod tests {
 
     use static_assertions::const_assert_eq;
 
-    use super::{LinkedListAllocator, Node};
+    use super::{Allocator, Node};
 
     #[repr(align(8))]
     struct MemPool<const N: usize>([u8; N]);
@@ -168,7 +158,7 @@ mod tests {
             SyncUnsafeCell::new(MemPool([0; HEAP_SIZE]));
         static HEAP2: SyncUnsafeCell<MemPool<HEAP_SIZE>> =
             SyncUnsafeCell::new(MemPool([0; HEAP_SIZE]));
-        let mut alloc = LinkedListAllocator::new();
+        let mut alloc = Allocator::new();
         unsafe {
             alloc.add_free_region(slice_from_raw_parts_mut(
                 addr_of_mut!((*HEAP1.get()).0).cast(),

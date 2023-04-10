@@ -12,9 +12,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "align-address"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d39c09fbfba977f4842e1f6bdc48b979112b64f8886993a34e051bc5f3c5c288"
+
+[[package]]
+name = "allocator"
+version = "0.1.0"
+dependencies = [
+ "align-address",
+ "static_assertions",
+]
+
+[[package]]
 name = "allocman"
 version = "0.1.0"
 dependencies = [
+ "align-address",
  "sel4",
  "static_assertions",
 ]
@@ -186,13 +201,6 @@ checksum = "b67380fd3b2fbe7527a606e18729d21c6f3951633d0500574c4dc22d2d638b9f"
 dependencies = [
  "cfg-if",
  "winapi",
-]
-
-[[package]]
-name = "linked_list_allocator"
-version = "0.1.0"
-dependencies = [
- "static_assertions",
 ]
 
 [[package]]
