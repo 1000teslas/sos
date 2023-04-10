@@ -25,16 +25,16 @@ impl Allocator {
     /// Adds the given memory region to the front of the list.
     ///
     /// This function is unsafe because the caller must guarantee that the given
-    /// heap bounds are valid and that the heap is unused.
-    pub unsafe fn add_free_region(&mut self, range: *mut [u8]) {
-        assert!(range.as_mut_ptr().is_aligned_to(mem::align_of::<Node>()));
-        assert!(range.len() >= mem::size_of::<Node>());
+    /// memory region is valid and unused.
+    pub unsafe fn add_free_region(&mut self, region: *mut [u8]) {
+        assert!(region.as_mut_ptr().is_aligned_to(mem::align_of::<Node>()));
+        assert!(region.len() >= mem::size_of::<Node>());
 
         let node = Node {
-            size: range.len(),
+            size: region.len(),
             next: self.head.next.take(),
         };
-        let node_ptr = NonNull::new(range.as_mut_ptr().cast::<Node>()).unwrap();
+        let node_ptr = NonNull::new(region.as_mut_ptr().cast::<Node>()).unwrap();
         unsafe {
             node_ptr.as_ptr().write(node);
         }
@@ -61,7 +61,23 @@ impl Allocator {
         None
     }
 
-    pub unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<[u8]>> {
+    /// Adjust the given layout so that the resulting allocated memory
+    /// region is also capable of storing a `Node`.
+    fn adjust(layout: Layout) -> Layout {
+        let layout = layout
+            .align_to(mem::align_of::<Node>())
+            .expect("adjusting alignment failed")
+            .pad_to_align();
+        Layout::from_size_align(
+            Ord::max(layout.size(), mem::size_of::<Node>()),
+            layout.align(),
+        )
+        .unwrap()
+    }
+}
+
+unsafe impl super::Allocator for Allocator {
+    unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<[u8]>> {
         let layout = Allocator::adjust(layout);
         self.find_region(layout).map(|(region, alloc)| {
             let alloc_end = alloc
@@ -79,25 +95,11 @@ impl Allocator {
         })
     }
 
-    pub unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
+    unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
         let layout = Allocator::adjust(layout);
         unsafe {
             self.add_free_region(ptr::slice_from_raw_parts_mut(ptr, layout.size()));
         }
-    }
-
-    /// Adjust the given layout so that the resulting allocated memory
-    /// region is also capable of storing a `Node`.
-    fn adjust(layout: Layout) -> Layout {
-        let layout = layout
-            .align_to(mem::align_of::<Node>())
-            .expect("adjusting alignment failed")
-            .pad_to_align();
-        Layout::from_size_align(
-            Ord::max(layout.size(), mem::size_of::<Node>()),
-            layout.align(),
-        )
-        .unwrap()
     }
 }
 

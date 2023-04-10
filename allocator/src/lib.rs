@@ -8,4 +8,12 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(clippy::as_conversions)]
 
+use core::{alloc::Layout, ptr::NonNull};
+
+pub mod bump;
 pub mod linked_list;
+
+unsafe trait Allocator {
+    unsafe fn alloc(&mut self, layout: Layout) -> Option<NonNull<[u8]>>;
+    unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout);
+}
