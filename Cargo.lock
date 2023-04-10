@@ -24,6 +24,7 @@ name = "allocman"
 version = "0.1.0"
 dependencies = [
  "allocator",
+ "ptr-ext",
  "sel4",
  "static_assertions",
 ]
