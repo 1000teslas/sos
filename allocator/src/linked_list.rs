@@ -4,7 +4,8 @@ use core::{
     ptr::{self, addr_of_mut, NonNull},
 };
 
-use align_address::Align;
+use ptr_ext::PtrExt;
+
 // based off https://os.phil-opp.com/allocator-designs/#linked-list-allocator
 
 pub struct Allocator {
@@ -26,7 +27,7 @@ impl Allocator {
     ///
     /// This function is unsafe because the caller must guarantee that the given
     /// memory region is valid and unused.
-    pub unsafe fn add_free_region(&mut self, region: *mut [u8]) {
+    pub unsafe fn add_free_region(&mut self, region: NonNull<[u8]>) {
         assert!(region.as_mut_ptr().is_aligned_to(mem::align_of::<Node>()));
         assert!(region.len() >= mem::size_of::<Node>());
 
@@ -34,7 +35,7 @@ impl Allocator {
             size: region.len(),
             next: self.head.next.take(),
         };
-        let node_ptr = NonNull::new(region.as_mut_ptr().cast::<Node>()).unwrap();
+        let node_ptr = region.cast::<Node>();
         unsafe {
             node_ptr.as_ptr().write(node);
         }
@@ -88,7 +89,10 @@ unsafe impl super::Allocator for Allocator {
             if excess_size > 0 {
                 unsafe {
                     // SAFETY: alloc has provenance for entire memory region pointed to by region
-                    self.add_free_region(ptr::slice_from_raw_parts_mut(alloc_end, excess_size));
+                    self.add_free_region(
+                        NonNull::new(ptr::slice_from_raw_parts_mut(alloc_end, excess_size))
+                            .unwrap(),
+                    );
                 }
             }
             alloc
@@ -98,7 +102,9 @@ unsafe impl super::Allocator for Allocator {
     unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
         let layout = Allocator::adjust(layout);
         unsafe {
-            self.add_free_region(ptr::slice_from_raw_parts_mut(ptr, layout.size()));
+            self.add_free_region(
+                NonNull::new(ptr::slice_from_raw_parts_mut(ptr, layout.size())).unwrap(),
+            );
         }
     }
 }
@@ -112,15 +118,12 @@ struct Node {
 }
 
 impl Node {
-    fn start(this: *mut Node) -> *mut u8 {
-        this.cast()
-    }
     fn end(this: *mut Node) -> *mut u8 {
         this.cast::<u8>()
             .map_addr(|addr| addr + unsafe { (*this).size })
     }
     fn alloc_from_region(this: *mut Self, layout: Layout) -> Option<NonNull<[u8]>> {
-        let alloc_start = Node::start(this).map_addr(|addr| addr.align_up(layout.align()));
+        let alloc_start = this.cast::<u8>().try_align_up(layout.align())?;
         let alloc_end = alloc_start.with_addr(alloc_start.addr().checked_add(layout.size())?);
 
         if alloc_end > Node::end(this) {
@@ -142,12 +145,13 @@ mod tests {
         alloc::Layout,
         cell::SyncUnsafeCell,
         mem,
-        ptr::{addr_of_mut, slice_from_raw_parts_mut},
+        ptr::{addr_of_mut, slice_from_raw_parts_mut, NonNull},
     };
 
     use static_assertions::const_assert_eq;
 
     use super::{Allocator, Node};
+    use crate::Allocator as _;
 
     #[repr(align(8))]
     struct MemPool<const N: usize>([u8; N]);
@@ -162,14 +166,20 @@ mod tests {
             SyncUnsafeCell::new(MemPool([0; HEAP_SIZE]));
         let mut alloc = Allocator::new();
         unsafe {
-            alloc.add_free_region(slice_from_raw_parts_mut(
-                addr_of_mut!((*HEAP1.get()).0).cast(),
-                HEAP_SIZE,
-            ));
-            alloc.add_free_region(slice_from_raw_parts_mut(
-                addr_of_mut!((*HEAP2.get()).0).cast(),
-                HEAP_SIZE,
-            ));
+            alloc.add_free_region(
+                NonNull::new(slice_from_raw_parts_mut(
+                    addr_of_mut!((*HEAP1.get()).0).cast(),
+                    HEAP_SIZE,
+                ))
+                .unwrap(),
+            );
+            alloc.add_free_region(
+                NonNull::new(slice_from_raw_parts_mut(
+                    addr_of_mut!((*HEAP2.get()).0).cast(),
+                    HEAP_SIZE,
+                ))
+                .unwrap(),
+            );
         }
         let l1 = Layout::new::<[u8; HEAP_SIZE]>();
         let l2 = Layout::new::<u64>();

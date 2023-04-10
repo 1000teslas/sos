@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["sos", "allocman", "allocator"]
+members = ["sos", "allocman", "allocator", "ptr-ext"]
 
 [profile.release]
 debug-assertions = true
